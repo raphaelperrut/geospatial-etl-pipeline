@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geospatial-etl-pipeline"
+version = "0.1.0"
+description = "A reproducible Python ETL pipeline for ingesting, validating, transforming and loading heterogeneous geospatial datasets into PostGIS."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Raphael Perrut" }
+]
+dependencies = [
+    "geopandas>=1.0,<2",
+    "pyproj>=3.7,<4",
+    "shapely>=2.0,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
