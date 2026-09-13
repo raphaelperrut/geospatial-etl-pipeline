@@ -16,6 +16,10 @@ dependencies = [
     "geopandas>=1.0,<2",
     "pyproj>=3.7,<4",
     "shapely>=2.0,<3",
+    "sqlalchemy>=2.0,<3",
+    "geoalchemy2>=0.18,<1",
+    "psycopg[binary]>=3.2,<4",
+    "typer>=0.16,<1",
 ]
 
 [project.optional-dependencies]
@@ -23,9 +27,15 @@ dev = [
     "pytest>=8,<9"
 ]
 
+[project.scripts]
+geospatial-etl = "geospatial_etl.cli:app"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "integration: tests requiring external infrastructure"
+]
