@@ -1,5 +1,9 @@
 # Geospatial ETL Pipeline
 
+[![Tests](https://github.com/raphaelperrut/geospatial-etl-pipeline/actions/workflows/tests.yml/badge.svg)](https://github.com/raphaelperrut/geospatial-etl-pipeline/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 A reproducible Python ETL pipeline for ingesting, inspecting, validating, normalizing and loading heterogeneous geospatial vector datasets into PostgreSQL/PostGIS.
 
 ## Status
