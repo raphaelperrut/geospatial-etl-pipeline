@@ -10,6 +10,24 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: geospatial_etl
+          POSTGRES_USER: geospatial_etl
+          POSTGRES_PASSWORD: geospatial_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U geospatial_etl -d geospatial_etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGIS_TEST_URL: postgresql+psycopg://geospatial_etl:geospatial_etl@localhost:5432/geospatial_etl
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
