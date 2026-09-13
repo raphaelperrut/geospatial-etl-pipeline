@@ -4,339 +4,175 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A reproducible Python ETL pipeline for ingesting, inspecting, validating, normalizing and loading heterogeneous geospatial vector datasets into PostgreSQL/PostGIS.
+A reproducible Python ETL pipeline for ingesting, inspecting, validating, normalizing, transforming and loading heterogeneous geospatial vector datasets into PostgreSQL/PostGIS.
 
 ## Status
 
-🚧 **v0.1.0 in development**
+Version `0.1.0` is release-ready.
 
-The core ETL workflow is implemented and covered by automated tests.
+The pipeline is validated end-to-end against PostgreSQL/PostGIS, including:
 
-PostGIS loading is implemented, while the final Docker-backed integration and end-to-end validation remain pending before the v0.1.0 release.
+- vector dataset ingestion;
+- dataset inspection and validation;
+- attribute normalization;
+- CRS reprojection;
+- PostGIS loading;
+- spatial metadata verification;
+- JSON ETL reporting;
+- command-line execution;
+- Docker-backed integration testing;
+- automated GitHub Actions CI.
 
-## Pipeline
+Current test suite:
+
+```text
+37 passed
+```
+
+## Overview
+
+Geospatial data pipelines often need to handle heterogeneous source files, inconsistent schemas, different coordinate reference systems and spatial database loading in a reproducible way.
+
+Geospatial ETL Pipeline provides a compact Python workflow for processing vector datasets through a defined sequence:
 
 ```text
 Vector dataset
-      ↓
-   Ingest
-      ↓
-   Inspect
-      ↓
-  Validate
-      ↓
- Normalize
-      ↓
- PostGIS load
-      ↓
- JSON report
+      |
+      v
+  Ingestion
+      |
+      v
+  Inspection
+      |
+      v
+  Validation
+      |
+      v
+Normalization
+      |
+      v
+CRS transformation
+      |
+      v
+PostGIS loading
+      |
+      v
+  ETL report
 ```
 
-## Current capabilities
+The project focuses on a transparent and testable ETL architecture rather than workflow orchestration infrastructure.
 
-- Read GeoPackage, GeoJSON and Shapefile datasets
-- Inspect spatial metadata and geometry quality
-- Detect missing CRS
-- Detect null, empty and invalid geometries
-- Report dataset bounds, geometry types and attribute columns
-- Normalize attribute column names
-- Detect collisions caused by column-name normalization
-- Reproject datasets to a target CRS
-- Load GeoDataFrames into PostgreSQL/PostGIS
-- Control existing-table behavior with `fail`, `replace` and `append`
-- Produce structured ETL execution reports
-- Export execution reports as JSON
-- Execute the workflow through a command-line interface
-- Generate a deterministic example dataset
-- Validate individual components and pipeline orchestration with automated tests
+Version `0.1.0` supports GeoPackage, GeoJSON and Shapefile inputs and PostgreSQL/PostGIS as the destination.
 
-## Tech stack
+## Features
 
-`Python` · `GeoPandas` · `Shapely` · `PyProj` · `SQLAlchemy` · `GeoAlchemy2` · `psycopg` · `PostgreSQL` · `PostGIS` · `Typer` · `pytest` · `Docker`
+### Vector data ingestion
 
-## Requirements
-
-- Python 3.12+
-- PostgreSQL/PostGIS for real database execution
-- Docker Desktop will be used for the reproducible PostGIS development environment
-
-Docker/PostGIS setup is not required to run the unit test suite.
-
-## Installation
-
-Clone the repository:
-
-```powershell
-git clone https://github.com/raphaelperrut/geospatial-etl-pipeline.git
-cd geospatial-etl-pipeline
-```
-
-Create and activate a virtual environment:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-Upgrade `pip` and install the project with development dependencies:
-
-```powershell
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-```
-
-## Generate the example dataset
-
-The repository includes a deterministic example generator.
-
-Run:
-
-```powershell
-python examples/generate_example.py
-```
-
-This creates:
-
-```text
-examples/generated/sample_points.gpkg
-```
-
-The generated GeoPackage contains:
-
-```text
-CRS: EPSG:4326
-Geometry: Point
-Features: 3
-Layer: features
-```
-
-The source attributes intentionally contain names that require normalization:
-
-```text
-Feature Name
-Source-ID
-```
-
-The `examples/generated/` directory is ignored by Git because these files are reproducible outputs.
-
-## Command-line interface
-
-The package installs the following command:
-
-```powershell
-geospatial-etl
-```
-
-Show the available commands:
-
-```powershell
-geospatial-etl --help
-```
-
-Show the ETL execution options:
-
-```powershell
-geospatial-etl run --help
-```
-
-The `run` command accepts:
-
-```text
-SOURCE
---database-url
---table
---schema
---target-crs
---if-exists
---report
-```
-
-### Example execution
-
-With a PostgreSQL/PostGIS database available, a complete execution can be started with:
-
-```powershell
-geospatial-etl run `
-    examples\generated\sample_points.gpkg `
-    --database-url "postgresql+psycopg://USER:PASSWORD@localhost:5432/DATABASE" `
-    --table sample_points `
-    --target-crs EPSG:31983 `
-    --report examples\generated\etl_report.json
-```
-
-The pipeline then performs:
-
-```text
-GeoPackage
-    ↓
-read_vector_dataset()
-    ↓
-inspect_dataset()
-    ↓
-validate_dataset()
-    ↓
-normalize_dataset()
-    ↓
-load_to_postgis()
-    ↓
-ETLReport
-    ↓
-JSON report
-```
-
-## Ingestion
-
-The ingestion layer currently accepts:
+Supported input formats:
 
 - GeoPackage (`.gpkg`)
 - GeoJSON (`.geojson`, `.json`)
-- Shapefile (`.shp`)
+- ESRI Shapefile (`.shp`)
 
-Input paths and supported file extensions are validated before the dataset is passed to GeoPandas.
+Input datasets are loaded as GeoPandas `GeoDataFrame` objects for subsequent processing.
 
-## Dataset inspection
+### Dataset inspection
 
-Each dataset is inspected before transformation or loading.
+The inspection stage extracts structured metadata and geometry-quality information, including:
 
-The structured inspection result contains:
+- feature count;
+- coordinate reference system;
+- geometry column;
+- geometry types;
+- attribute columns;
+- null geometry count;
+- empty geometry count;
+- invalid geometry count;
+- dataset bounds.
 
-- feature count
-- CRS
-- geometry column
-- geometry types
-- attribute columns
-- null geometry count
-- empty geometry count
-- invalid geometry count
-- dataset bounding box
-
-Example:
+Example inspection:
 
 ```text
-DatasetInspection(
-    feature_count=3,
-    crs="EPSG:4326",
-    geometry_column="geometry",
-    geometry_types=("Point",),
-    attribute_columns=("Feature Name", "Source-ID"),
-    null_geometry_count=0,
-    empty_geometry_count=0,
-    invalid_geometry_count=0,
-    bounds=(...)
-)
+feature_count: 3
+crs: EPSG:4326
+geometry_column: geometry
+geometry_types: Point
+attribute_columns: Feature Name, Source-ID
+null_geometry_count: 0
+empty_geometry_count: 0
+invalid_geometry_count: 0
 ```
 
-## Validation
+### Dataset validation
 
-The validation stage currently detects:
+Datasets are validated before transformation and database loading.
 
-- empty datasets
-- missing CRS
-- null geometries
-- empty geometries
-- invalid geometries
+The current validation rules detect:
 
-Validation produces a structured result:
+- empty datasets;
+- missing CRS definitions;
+- null geometries;
+- empty geometries;
+- invalid geometries.
 
-```text
-DatasetValidation(
-    is_valid=True,
-    issues=()
-)
-```
+Validation failures stop the pipeline before data is written to PostGIS.
 
-When problems are detected, individual validation issues contain a stable code and a human-readable message.
+### Attribute normalization
+
+Attribute column names are normalized to lowercase `snake_case`.
 
 For example:
 
 ```text
-ValidationIssue(
-    code="missing_crs",
-    message="Dataset has no defined CRS."
-)
-```
-
-Invalid datasets are stopped before normalization and PostGIS loading.
-
-## Normalization
-
-The normalization stage currently performs:
-
-- attribute column-name normalization
-- optional CRS reprojection
-
-For example:
-
-```text
-Feature Name  → feature_name
-Source-ID     → source_id
+Feature Name  -> feature_name
+Source-ID     -> source_id
 ```
 
 The geometry column is preserved.
 
-Column normalization also detects collisions. For example, two source columns that both normalize to the same destination name cause the operation to fail instead of silently overwriting data.
+Normalization also detects collisions where multiple original fields would produce the same normalized column name.
 
-When a target CRS is provided:
+### CRS transformation
 
-```powershell
---target-crs EPSG:31983
-```
+Datasets can optionally be reprojected to a target CRS before loading.
 
-the dataset is reprojected before being loaded.
-
-A dataset without a defined source CRS cannot be reprojected.
-
-## PostGIS loading
-
-Normalized GeoDataFrames are loaded through GeoPandas and SQLAlchemy into PostgreSQL/PostGIS.
-
-The destination can be configured with:
+For example:
 
 ```text
-table
-schema
-if_exists
+EPSG:4326 -> EPSG:31983
 ```
 
-Supported existing-table behaviors are:
+Reprojection requires the source dataset to have a defined CRS.
 
-```text
-fail
-replace
-append
-```
+### PostGIS loading
 
-The loader rejects:
+Validated and normalized datasets can be loaded directly into PostgreSQL/PostGIS.
 
-- empty datasets
-- datasets without a CRS
-- empty table names
-- empty schema names
-- unsupported `if_exists` values
+Supported table behaviors are:
 
-## ETL execution report
+- `fail`
+- `replace`
+- `append`
 
-A successful pipeline execution produces an `ETLReport`.
+Spatial geometries retain their CRS/SRID when written to PostGIS.
 
-The report contains:
+GeoPandas/PostGIS integration also creates a spatial GiST index for the geometry column.
 
-- source path
-- destination table
-- destination schema
-- target CRS
-- UTC start timestamp
-- UTC finish timestamp
-- source dataset inspection
-- validation result
-- normalized dataset inspection
+### ETL reporting
 
-Reports can optionally be written as JSON through:
+Successful pipeline executions produce a structured report containing:
 
-```powershell
---report examples\generated\etl_report.json
-```
+- source path;
+- destination schema and table;
+- target CRS;
+- UTC start and finish timestamps;
+- source inspection;
+- validation result;
+- normalized dataset inspection.
 
-A report has the following general structure:
+Reports can optionally be written to JSON.
+
+Example:
 
 ```json
 {
@@ -344,28 +180,9 @@ A report has the following general structure:
   "destination_table": "sample_points",
   "destination_schema": "public",
   "target_crs": "EPSG:31983",
-  "started_at": "2026-09-12T20:00:00+00:00",
-  "finished_at": "2026-09-12T20:00:01+00:00",
   "source_inspection": {
     "feature_count": 3,
-    "crs": "EPSG:4326",
-    "geometry_column": "geometry",
-    "geometry_types": [
-      "Point"
-    ],
-    "attribute_columns": [
-      "Feature Name",
-      "Source-ID"
-    ],
-    "null_geometry_count": 0,
-    "empty_geometry_count": 0,
-    "invalid_geometry_count": 0,
-    "bounds": [
-      -47.8825,
-      -15.7942,
-      -47.8675,
-      -15.785
-    ]
+    "crs": "EPSG:4326"
   },
   "validation": {
     "is_valid": true,
@@ -373,98 +190,416 @@ A report has the following general structure:
   },
   "normalized_inspection": {
     "feature_count": 3,
-    "crs": "EPSG:31983",
-    "geometry_column": "geometry",
-    "geometry_types": [
-      "Point"
-    ],
-    "attribute_columns": [
-      "feature_name",
-      "source_id"
-    ],
-    "null_geometry_count": 0,
-    "empty_geometry_count": 0,
-    "invalid_geometry_count": 0,
-    "bounds": [
-      190000.0,
-      8250000.0,
-      192000.0,
-      8252000.0
-    ]
+    "crs": "EPSG:31983"
   }
 }
 ```
 
-The coordinates shown for the normalized bounds above are illustrative; actual values are calculated from the transformed dataset.
+## Technology stack
 
-## Tests
+The project uses:
 
-Run the complete test suite with:
+- Python 3.12+
+- GeoPandas
+- PyProj
+- Shapely
+- SQLAlchemy
+- GeoAlchemy2
+- Psycopg
+- Typer
+- PostgreSQL
+- PostGIS
+- pytest
+- Docker Compose
+- GitHub Actions
 
-```powershell
-pytest -v
+## Requirements
+
+- Python 3.12 or newer
+- PostgreSQL with PostGIS, or Docker for the provided development database
+- Git
+
+Docker Desktop with the WSL 2 backend can be used on Windows.
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/raphaelperrut/geospatial-etl-pipeline.git
+cd geospatial-etl-pipeline
 ```
 
-The current development suite covers:
+Create a virtual environment:
 
-- vector ingestion
-- dataset inspection
-- validation
-- normalization
-- PostGIS loader behavior
-- ETL orchestration
-- structured reporting
-- JSON report export
-- command-line interface
-- integration between pipeline stages
+```bash
+python -m venv .venv
+```
 
-At the current development checkpoint:
+Activate it on Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+On Linux or macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install the project and development dependencies:
+
+```bash
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+The CLI entry point is then available as:
+
+```bash
+geospatial-etl
+```
+
+## Quick start
+
+### 1. Generate the example dataset
+
+The repository includes a deterministic example generator:
+
+```bash
+python examples/generate_example.py
+```
+
+It creates:
 
 ```text
-35 passed
-1 skipped
+examples/generated/sample_points.gpkg
 ```
 
-The skipped test is the real PostGIS integration test. It is intentionally disabled when no PostGIS test database is configured.
+The generated GeoPackage contains three point features in `EPSG:4326` with deliberately non-normalized attribute names.
 
-### PostGIS integration test
+Generated example artifacts are excluded from version control.
 
-The integration test becomes active when `POSTGIS_TEST_URL` is defined.
+### 2. Start PostGIS with Docker
 
-For example:
+Start the development database:
 
-```powershell
-$env:POSTGIS_TEST_URL = "postgresql+psycopg://USER:PASSWORD@localhost:5432/DATABASE"
-pytest tests/test_postgis_integration.py -v
-```
-
-Before the v0.1.0 release, this test will be validated against the Docker-backed PostGIS environment.
-
-## Docker/PostGIS
-
-The repository includes:
-
-```text
-docker-compose.yml
-```
-
-for a reproducible PostgreSQL/PostGIS development environment.
-
-Docker setup and the final database-backed validation are part of the remaining v0.1.0 hardening work.
-
-Once Docker is configured, the intended development workflow is:
-
-```powershell
+```bash
 docker compose up -d
+```
+
+Check its status:
+
+```bash
 docker compose ps
 ```
 
-followed by configuration of `POSTGIS_TEST_URL` and execution of the integration suite.
+The provided Docker Compose configuration creates:
+
+```text
+Database: geospatial_etl
+User:     geospatial_etl
+Password: geospatial_etl
+Port:     5432
+```
+
+These credentials are intended for local development and testing only.
+
+### 3. Run the ETL pipeline
+
+Example:
+
+```bash
+geospatial-etl run \
+  examples/generated/sample_points.gpkg \
+  --database-url "postgresql+psycopg://geospatial_etl:geospatial_etl@localhost:5432/geospatial_etl" \
+  --table sample_points \
+  --schema public \
+  --target-crs EPSG:31983 \
+  --if-exists replace \
+  --report examples/generated/etl_report.json
+```
+
+PowerShell:
+
+```powershell
+geospatial-etl run `
+  examples/generated/sample_points.gpkg `
+  --database-url "postgresql+psycopg://geospatial_etl:geospatial_etl@localhost:5432/geospatial_etl" `
+  --table sample_points `
+  --schema public `
+  --target-crs EPSG:31983 `
+  --if-exists replace `
+  --report examples/generated/etl_report.json
+```
+
+Expected output:
+
+```text
+ETL completed successfully: 3 features loaded into public.sample_points
+Report written to: examples/generated/etl_report.json
+```
+
+The resulting PostGIS table contains normalized attributes and reprojected geometry:
+
+```text
+feature_name | text
+source_id    | bigint
+geometry     | geometry(Point,31983)
+```
+
+## CLI reference
+
+The main command is:
+
+```bash
+geospatial-etl run SOURCE [OPTIONS]
+```
+
+### Required arguments and options
+
+`SOURCE`
+
+Path to the input vector dataset.
+
+`--database-url`
+
+SQLAlchemy PostgreSQL connection URL.
+
+`--table`
+
+Destination PostGIS table name.
+
+### Optional options
+
+`--schema`
+
+Destination schema.
+
+Default:
+
+```text
+public
+```
+
+`--target-crs`
+
+Optional target coordinate reference system.
+
+Example:
+
+```text
+EPSG:31983
+```
+
+If omitted, the source CRS is preserved.
+
+`--if-exists`
+
+Controls how an existing destination table is handled.
+
+Supported values:
+
+```text
+fail
+replace
+append
+```
+
+Default:
+
+```text
+fail
+```
+
+`--report`
+
+Optional path for a JSON ETL report.
+
+Example:
+
+```text
+etl_report.json
+```
+
+## Python API
+
+The pipeline can also be executed directly from Python.
+
+```python
+from geospatial_etl.load import create_postgis_engine
+from geospatial_etl.pipeline import run_etl_pipeline
+
+
+engine = create_postgis_engine(
+    "postgresql+psycopg://geospatial_etl:"
+    "geospatial_etl@localhost:5432/geospatial_etl"
+)
+
+try:
+    result = run_etl_pipeline(
+        source_path="data/input.gpkg",
+        engine=engine,
+        table_name="features",
+        target_crs="EPSG:31983",
+        schema="public",
+        if_exists="replace",
+    )
+
+    print(result.validation.is_valid)
+    print(result.normalized_inspection.crs)
+finally:
+    engine.dispose()
+```
+
+The result provides access to:
+
+```text
+source_inspection
+validation
+normalized_inspection
+report
+```
+
+## Testing
+
+Run the complete test suite:
+
+```bash
+pytest -v
+```
+
+The current release-ready checkpoint is:
+
+```text
+37 passed
+```
+
+The test suite covers:
+
+- vector ingestion;
+- unsupported and missing input handling;
+- dataset inspection;
+- missing CRS detection;
+- null, empty and invalid geometries;
+- validation behavior;
+- attribute normalization;
+- duplicate normalized column detection;
+- CRS reprojection;
+- PostGIS loading behavior;
+- pipeline orchestration;
+- ETL report generation;
+- JSON report output;
+- CLI execution;
+- real PostGIS integration;
+- complete end-to-end ETL execution.
+
+### PostGIS integration tests
+
+Integration tests use the `POSTGIS_TEST_URL` environment variable.
+
+PowerShell:
+
+```powershell
+$env:POSTGIS_TEST_URL = "postgresql+psycopg://geospatial_etl:geospatial_etl@localhost:5432/geospatial_etl"
+pytest -v
+```
+
+Linux/macOS:
+
+```bash
+export POSTGIS_TEST_URL="postgresql+psycopg://geospatial_etl:geospatial_etl@localhost:5432/geospatial_etl"
+pytest -v
+```
+
+Without this variable, tests requiring external PostGIS infrastructure are skipped.
+
+## End-to-end validation
+
+The end-to-end integration test validates the complete workflow against a real PostGIS database:
+
+```text
+GeoPackage
+    |
+    v
+Ingestion
+    |
+    v
+Inspection
+    |
+    v
+Validation
+    |
+    v
+Attribute normalization
+    |
+    v
+CRS reprojection
+EPSG:4326 -> EPSG:31983
+    |
+    v
+PostGIS load
+    |
+    v
+SQL verification
+```
+
+The database verification checks:
+
+- feature count;
+- geometry type;
+- SRID;
+- normalized attribute names;
+- persisted spatial geometry.
+
+The complete CLI workflow has also been validated against the Docker-backed PostGIS environment.
+
+## Continuous integration
+
+GitHub Actions automatically runs the test suite on pushes to `main` and pull requests.
+
+The CI environment provisions a PostgreSQL/PostGIS service container and executes both unit and integration tests.
+
+This means the PostGIS loading and end-to-end workflow are validated against real spatial database infrastructure in CI rather than being limited to mocked database calls.
+
+## Docker development environment
+
+The repository includes a `docker-compose.yml` configuration for a reproducible local PostGIS environment.
+
+Start it with:
+
+```bash
+docker compose up -d
+```
+
+Inspect the service:
+
+```bash
+docker compose ps
+```
+
+Stop it:
+
+```bash
+docker compose down
+```
+
+To stop the environment and remove its persistent development volume:
+
+```bash
+docker compose down -v
+```
+
+The `-v` option deletes the database volume and should only be used when a complete local database reset is intended.
 
 ## Project structure
 
 ```text
 geospatial-etl-pipeline/
+├── .github/
+│   └── workflows/
+│       └── tests.yml
 ├── examples/
 │   └── generate_example.py
 ├── src/
@@ -481,6 +616,7 @@ geospatial-etl-pipeline/
 │       └── validation.py
 ├── tests/
 │   ├── test_cli.py
+│   ├── test_e2e.py
 │   ├── test_ingest.py
 │   ├── test_inspect.py
 │   ├── test_load.py
@@ -499,58 +635,90 @@ geospatial-etl-pipeline/
 
 ## Architecture
 
-The project keeps each ETL responsibility isolated:
+The implementation separates the ETL workflow into small modules with explicit responsibilities:
 
 ```text
 ingest.py
-    │
-    ▼
+    |
+    v
 inspect.py
-    │
-    ▼
+    |
+    v
 validation.py
-    │
-    ▼
+    |
+    v
 normalization.py
-    │
-    ▼
+    |
+    v
 load.py
+    |
+    v
+PostGIS
 ```
 
-The high-level workflow is coordinated by:
+`pipeline.py` orchestrates these stages and builds the execution result.
 
-```text
-pipeline.py
-```
+`report.py` provides structured execution reporting.
 
-Execution metadata is handled by:
+`cli.py` exposes the workflow through the command line.
 
-```text
-report.py
-```
+This separation keeps the individual stages independently testable while providing a single high-level ETL operation.
 
-and the user-facing command-line interface by:
+## Design principles
 
-```text
-cli.py
-```
+The project follows a few deliberate constraints:
 
-This keeps ingestion, spatial quality assessment, transformation, persistence and presentation concerns separated while maintaining a small codebase.
+- explicit ETL stages rather than hidden processing;
+- validation before database writes;
+- immutable structured inspection and validation results;
+- deterministic schema normalization;
+- explicit CRS handling;
+- reproducible database infrastructure;
+- automated unit, integration and end-to-end testing;
+- minimal orchestration overhead.
 
-## Roadmap to v0.1.0
+The initial release intentionally avoids external workflow orchestrators such as Airflow, Prefect, Dagster or Celery. The objective is to keep the core geospatial ETL behavior small, transparent and reusable.
 
-Remaining work before the first release:
+## Version 0.1.0 scope
 
-- Add continuous integration with GitHub Actions
-- Install and validate the Docker development environment
-- Start the PostgreSQL/PostGIS container
-- Run the real PostGIS integration test
-- Add a complete GeoPackage → validation → normalization → PostGIS end-to-end test
-- Validate the reproducible CLI example against PostGIS
-- Run the complete test suite
-- Perform final README and repository review
-- Publish `v0.1.0`
+The initial release provides:
+
+- [x] GeoPackage ingestion
+- [x] GeoJSON ingestion
+- [x] Shapefile ingestion
+- [x] structured dataset inspection
+- [x] geometry-quality validation
+- [x] missing CRS validation
+- [x] attribute column normalization
+- [x] CRS reprojection
+- [x] PostgreSQL/PostGIS loading
+- [x] configurable existing-table behavior
+- [x] structured ETL execution results
+- [x] JSON ETL reports
+- [x] command-line interface
+- [x] deterministic example dataset
+- [x] unit tests
+- [x] PostGIS integration tests
+- [x] end-to-end ETL test
+- [x] Docker Compose development environment
+- [x] PostGIS-backed GitHub Actions CI
+
+## Future work
+
+Potential future versions may explore:
+
+- explicit GeoPackage layer selection;
+- richer schema validation rules;
+- configurable field mappings;
+- geometry repair strategies;
+- batch ingestion;
+- additional spatial database targets;
+- database connection configuration through environment variables;
+- richer execution metrics and logging;
+- larger dataset performance testing.
+
+These features are intentionally outside the `v0.1.0` scope.
 
 ## License
 
-MIT
+This project is licensed under the MIT License.
